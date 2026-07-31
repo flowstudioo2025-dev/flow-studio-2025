@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow Studio — Pedidos de impresión 3D</title>
+<meta name="theme-color" content="#13361C">
+<link rel="icon" href="uploads/logo.png">
+<link rel="apple-touch-icon" href="uploads/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; -webkit-font-smoothing:antialiased; font-family:'Manrope',sans-serif; color:#13361C; background:oklch(97.5% 0.006 110); }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(19,54,28,0.25); border-radius:8px; }
+  button { font-family:inherit; }
+  @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.35} }
+  @keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin { to { transform:rotate(360deg) } }
+
+  .app { min-height:100vh; width:100%; display:flex; flex-direction:column; }
+
+  /* ---------- Pantalla de acceso ---------- */
+  .gate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:#13361C; }
+  .gate-card { background:#fff; border-radius:20px; padding:32px; width:100%; max-width:380px; display:flex; flex-direction:column; gap:16px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .gate-brand { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; margin-bottom:4px; }
+  .gate-brand img { width:60px; height:60px; border-radius:50%; object-fit:cover; }
+  .gate-brand .t { font-weight:800; font-size:20px; }
+  .gate-brand .s { font-size:13px; color:#6b7b6e; }
+  .gate label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:700; color:#3f5346; }
+  .gate input { border:1.5px solid oklch(88% 0.012 110); border-radius:10px; padding:11px 13px; font-size:15px; font-family:inherit; }
+  .gate input:focus { outline:none; border-color:#13361C; }
+  .gate .hint { font-size:12px; color:#8a9a8d; text-align:center; line-height:1.5; }
+  .spinner { width:16px; height:16px; border:2px solid rgba(244,241,233,.35); border-top-color:#F4F1E9; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+
+  header.topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 28px; background:#13361C; color:#F4F1E9; flex-wrap:wrap; gap:12px; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand img { width:38px; height:38px; border-radius:50%; object-fit:cover; background:#F4F1E9; }
+  .brand .name { font-weight:800; font-size:17px; letter-spacing:-.3px; }
+  .brand .sub { font-size:12px; color:#B9CDBD; }
+  .top-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .btn-primary-light { background:#F4F1E9; color:#13361C; border:none; padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .btn-primary-light:hover { background:#fff; }
+  .btn-primary-light .plus { font-size:17px; line-height:1; }
+  .btn-ghost-light { background:rgba(244,241,233,.12); color:#F4F1E9; border:none; padding:9px 13px; border-radius:9px; font-weight:700; font-size:12.5px; cursor:pointer; }
+  .btn-ghost-light:hover { background:rgba(244,241,233,.22); }
+
+  .tabs-bar { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; padding:14px 28px 0; flex-wrap:wrap; }
+  .tabs { display:flex; gap:6px; }
+  .tab { border:none; padding:9px 16px; border-radius:9px 9px 0 0; font-weight:700; font-size:13.5px; cursor:pointer; }
+
+  .excel-bar { display:flex; align-items:center; gap:8px; padding-bottom:6px; flex-wrap:wrap; }
+  .pill { display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:20px; border:1px solid transparent; }
+  .pill.on   { background:#E3F0E7; color:#245e35; border-color:#c3dfcb; }
+  .pill.off  { background:oklch(94% 0.008 110); color:#6b7b6e; border-color:oklch(89% 0.01 110); }
+  .pill.warn { background:#FBEFDD; color:#8a5a12; border-color:#F0DDBB; }
+  .pill .dot { width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; }
+  .pill.on .dot { animation:pulseDot 2.4s ease-in-out infinite; }
+  .btn-soft { background:#fff; border:1px solid oklch(88% 0.012 110); color:#3f5346; padding:6px 12px; border-radius:9px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .btn-soft:hover { border-color:#13361C; }
+  .btn-soft.accent { background:#13361C; border-color:#13361C; color:#F4F1E9; }
+
+  .stale-banner { background:#FBEFDD; color:#7A4A12; padding:10px 28px; font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:8px; border-bottom:1px solid #F0DDBB; margin-top:14px; }
+  .stale-banner .dot { width:8px; height:8px; border-radius:50%; background:#C9791D; animation:pulseDot 1.6s ease-in-out infinite; display:inline-block; flex:none; }
+
+  .quotes-wrap { flex:1; padding:24px; display:flex; flex-direction:column; gap:18px; max-width:760px; margin:0 auto; width:100%; }
+  .params-card { background:#fff; border:1px solid oklch(90% 0.01 110); border-radius:14px; padding:4px 6px; }
+  .params-toggle { width:100%; background:none; border:none; padding:12px 10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:700; font-size:13.5px; color:#3f5346; }
+  .params-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; padding:6px 10px 14px; }
+  .params-grid label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:#5b6b5e; }
+  .params-grid input { border:1.5px solid oklch(88% 0.012 110); border-radius:8px; padding:8px 10px; font-size:13.5px; font-family:inherit; }
+  .params-grid input:focus { outline:none; border-color:#13361C; }
+  .params-foot { display:flex; justify-content:flex-end; padding:0 10px 12px; }
+  .section-title { font-weight:800; font-size:14.5px; color:#3f5346; padding:0 4px; }
+  .empty-box { border:1.5px dashed oklch(85% 0.01 110); border-radius:12px; padding:30px 12px; text-align:center; color:#8a9a8d; font-size:13.5px; }
+
+  .quote-card { background:#fff; border:1px solid oklch(89% 0.012 110); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; box-shadow:0 1px 2px rgba(19,54,28,.05); }
+  .quote-card .top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .quote-card .piece { font-weight:700; font-size:15px; }
+  .quote-card .client { font-size:13px; color:#5b6b5e; }
+  .quote-card .price-label { font-size:11px; color:#8a9a8d; font-weight:600; }
+  .quote-card .price { font-weight:800; font-size:18px; white-space:nowrap; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color:#3f5346; }
+  .chip { background:oklch(95% 0.008 110); padding:3px 8px; border-radius:7px; }
+  .quote-card .breakdown { font-size:12px; color:#8a9a8d; }
+  .quote-card .actions { display:flex; gap:8px; margin-top:2px; }
+  .btn-convert { flex:1; background:#13361C; color:#F4F1E9; border:none; padding:9px 10px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; }
+  .btn-x { background:oklch(96% 0.008 110); border:none; color:#a45; padding:9px 12px; border-radius:9px; font-size:13px; cursor:pointer; }
+  .btn-x:hover { background:#f7e4e4; }
+
+  .board { flex:1; padding:24px; display:grid; grid-template-columns:repeat(3,minmax(280px,1fr)); gap:18px; align-items:start; }
+  .column { background:oklch(99% 0.003 110); border-radius:16px; padding:14px; min-height:200px; border:1px solid oklch(90% 0.01 110); display:flex; flex-direction:column; gap:12px; transition:border-color .12s, background .12s; }
+  .column.dragover { border-color:#13361C; background:#EEF4EF; }
+  .col-head { display:flex; align-items:center; justify-content:space-between; padding:4px 6px 2px; }
+  .col-head .left { display:flex; align-items:center; gap:8px; }
+  .col-dot { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .col-label { font-weight:800; font-size:14.5px; letter-spacing:.2px; }
+  .col-count { background:oklch(93% 0.01 110); color:#5b6b5e; font-size:12px; font-weight:700; padding:2px 9px; border-radius:20px; }
+
+  .order-card { background:#fff; border:1px solid oklch(89% 0.012 110); border-radius:13px; padding:14px; cursor:grab; box-shadow:0 1px 2px rgba(19,54,28,.05); display:flex; flex-direction:column; gap:8px; }
+  .order-card:hover { box-shadow:0 4px 14px rgba(19,54,28,.1); border-color:oklch(80% 0.02 110); }
+  .order-card.dragging { opacity:.4; }
+  .order-card .top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .order-card .piece { font-weight:700; font-size:14.5px; line-height:1.3; }
+  .stale-badge { font-size:11px; background:#FBEFDD; color:#B5651D; padding:2px 7px; border-radius:20px; font-weight:700; white-space:nowrap; flex:none; }
+  .order-card .client { font-size:13px; color:#5b6b5e; }
+  .order-card .notes { font-size:12.5px; color:#6b7b6e; font-style:italic; line-height:1.4; }
+  .order-card .actions { display:flex; gap:6px; margin-top:4px; align-items:center; }
+  .btn-prev { flex:1; background:oklch(96% 0.008 110); border:none; color:#3f5346; padding:7px 8px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+  .btn-next { flex:1; background:#13361C; border:none; color:#F4F1E9; padding:7px 8px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+  .btn-icon { background:none; border:none; color:#7b8b7e; padding:7px 8px; border-radius:8px; font-size:13px; cursor:pointer; flex:none; }
+  .btn-icon:hover { background:oklch(95% 0.008 110); color:#13361C; }
+  .btn-icon.danger:hover { background:#f7e4e4; color:#a45; }
+  .col-foot { display:flex; }
+  .btn-archive { background:none; border:1px dashed oklch(85% 0.01 110); color:#6b7b6e; padding:7px 12px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; width:100%; }
+  .btn-archive:hover { border-color:#13361C; color:#13361C; }
+
+  .overlay { position:fixed; inset:0; background:rgba(19,54,28,.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .modal { background:#fff; border-radius:18px; padding:26px; width:100%; max-width:440px; display:flex; flex-direction:column; gap:14px; max-height:90vh; overflow-y:auto; }
+  .modal.wide { max-width:470px; }
+  .modal.narrow { max-width:380px; }
+  .modal .head { display:flex; justify-content:space-between; align-items:center; }
+  .modal .title { font-weight:800; font-size:18px; }
+  .modal .close { background:none; border:none; font-size:18px; cursor:pointer; color:#5b6b5e; line-height:1; padding:4px 8px; border-radius:8px; }
+  .modal .close:hover { background:oklch(95% 0.008 110); }
+  .modal label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:700; color:#3f5346; }
+  .modal input, .modal textarea { border:1.5px solid oklch(88% 0.012 110); border-radius:9px; padding:10px 12px; font-size:14px; font-family:inherit; color:inherit; background:#fff; }
+  .modal input:focus, .modal textarea:focus { outline:none; border-color:#13361C; }
+  .modal textarea { resize:vertical; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .preview-box { background:oklch(96% 0.008 110); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px; font-size:13px; color:#3f5346; }
+  .preview-box .row { display:flex; justify-content:space-between; gap:12px; }
+  .preview-box .row.bold { font-weight:700; }
+  .preview-box .row.total { font-weight:800; font-size:16px; color:#13361C; border-top:1px solid oklch(88% 0.012 110); padding-top:8px; margin-top:2px; }
+  .form-error { color:#b5451d; font-size:13px; font-weight:600; }
+  .modal .msg { font-size:14px; line-height:1.5; color:#3f5346; }
+  .btn-submit { background:#13361C; color:#F4F1E9; border:none; padding:12px; border-radius:10px; font-weight:700; font-size:14.5px; cursor:pointer; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:9px; }
+  .btn-submit:hover { background:#1c4a28; }
+  .btn-submit:disabled { opacity:.65; cursor:default; }
+  .confirm-actions { display:flex; gap:10px; margin-top:4px; }
+  .btn-cancel { flex:1; background:oklch(95% 0.008 110); border:none; color:#3f5346; padding:11px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
+  .btn-danger { flex:1; background:#a4453f; border:none; color:#fff; padding:11px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
+  .btn-danger:hover { background:#8e3a35; }
+
+  .toasts { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:8px; z-index:90; align-items:center; pointer-events:none; }
+  .toast { background:#13361C; color:#F4F1E9; padding:11px 18px; border-radius:11px; font-size:13.5px; font-weight:600; box-shadow:0 6px 20px rgba(19,54,28,.25); animation:toastIn .18s ease-out; max-width:90vw; text-align:center; }
+  .toast.warn { background:#8a5a12; }
+  .toast.err  { background:#8e3a35; }
+
+  @media (max-width:860px){ .board { grid-template-columns:1fr; } }
+  @media (max-width:560px){
+    header.topbar, .tabs-bar, .stale-banner { padding-left:16px; padding-right:16px; }
+    .quotes-wrap, .board { padding:16px; }
+    .grid3 { grid-template-columns:1fr; }
+    .brand .sub { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+"use strict";
+(function () {
+
+/* ==================================================================
+   1. Dominio
+   ================================================================== */
+
+var STAGES = [
+  { id:'pedidos',    label:'Pedidos',     color:'#13361C' },
+  { id:'proceso',    label:'En Proceso',  color:'#C9791D' },
+  { id:'finalizado', label:'Finalizados', color:'#3d7a52' }
+];
+var STALE_DAYS = 3, DAY_MS = 86400000;
+
+var CACHE_KEY  = 'flowstudio_cache_v2';
+var OUTBOX_KEY = 'flowstudio_outbox_v2';
+
+var DEFAULT_PARAMS = {
+  filamentPrice:12000, energyCost:248, printerPower:0.095, amortPerHour:116,
+  damagePerHour:100, waste:0.1, packagingCost:1186.5, laborRate:5000,
+  margin:1, iva:0.19, rounding:500
+};
+var PARAM_LABELS = {
+  filamentPrice:'Filamento CLP/kg', energyCost:'Energía CLP/kWh',
+  printerPower:'Potencia impresora (kW)', amortPerHour:'Amortización CLP/h',
+  damagePerHour:'Daño/mantención CLP/h', waste:'Desperdicio (0,10 = 10%)',
+  packagingCost:'Embalaje por envío CLP', laborRate:'Mano de obra CLP/h',
+  margin:'Margen (1,00 = 100%)', iva:'IVA (Chile = 0,19)', rounding:'Redondeo a múltiplo de'
+};
+var PARAM_STEP = { printerPower:'0.001', waste:'0.01', margin:'0.05', iva:'0.01', packagingCost:'0.5' };
+
+function fmtCLP(n){ if(n==null||isNaN(n)) return '0'; return Math.round(n).toLocaleString('es-CL'); }
+function fmtDate(ts){
+  if(!ts) return '';
+  var d=new Date(ts), p=function(v){return String(v).padStart(2,'0');};
+  return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear();
+}
+function parseCLP(str){
+  if(typeof str==='number') return str;
+  if(!str) return null;
+  var n=parseFloat(String(str).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'));
+  return isNaN(n)?null:n;
+}
+function daysBetween(from,to){ return from? Math.max(0,Math.floor((to-from)/DAY_MS)) : 0; }
+function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function computeQuote(grams,hours,minutes,p){
+  var filament = (grams*(1+p.waste))/1000*p.filamentPrice;
+  var energy   = hours*p.printerPower*p.energyCost;
+  var amort    = hours*p.amortPerHour;
+  var damage   = hours*p.damagePerHour;
+  var labor    = minutes>0 ? (minutes/60)*p.laborRate : 0;
+  var productionCost = filament+energy+amort+damage+labor;
+  var marginCost = productionCost*p.margin;
+  var packaging  = p.packagingCost;
+  var netPrice   = productionCost+marginCost+packaging;
+  var iva        = netPrice*p.iva;
+  var finalPrice = netPrice+iva;
+  var r = p.rounding||1;
+  return { productionCost:productionCost, marginCost:marginCost, packaging:packaging,
+           netPrice:netPrice, iva:iva, finalPrice:finalPrice,
+           roundedPrice: Math.ceil(finalPrice/r)*r };
+}
+
+function normalizeOrder(o){
+  var now=Date.now();
+  return {
+    id: o.id || uid('o'),
+    client:o.client||'', piece:o.piece||'',
+    qty: parseInt(o.qty,10)||1,
+    price: o.price==null?'':String(o.price),
+    material:o.material||'', notes:o.notes||'',
+    stage: STAGES.some(function(s){return s.id===o.stage;}) ? o.stage : 'pedidos',
+    createdAt: o.createdAt||o.enteredStage||now,
+    enteredStage: o.enteredStage||o.createdAt||now,
+    finishedAt: o.finishedAt||null,
+    archived: !!o.archived,
+    quote: o.quote||null
+  };
+}
+
+function seedOrders(){
+  var now=Date.now(), ago=function(d){return now-d*DAY_MS;};
+  return [
+    normalizeOrder({id:uid('o'),client:'Camila Rojas',piece:'Lámpara Nube 20cm',qty:1,price:'28.000',material:'PLA blanco',notes:'Entrega el viernes',stage:'pedidos',createdAt:ago(1),enteredStage:ago(0)}),
+    normalizeOrder({id:uid('o'),client:'Tienda Raíz',piece:'Set de 6 servilleteros',qty:6,price:'15.000',material:'PETG natural',notes:'',stage:'proceso',createdAt:ago(6),enteredStage:ago(4)}),
+    normalizeOrder({id:uid('o'),client:'Javiera M.',piece:'Florero espiral',qty:2,price:'19.000',material:'PLA verde salvia',notes:'Retira en el taller',stage:'finalizado',createdAt:ago(5),enteredStage:ago(1),finishedAt:ago(1)})
+  ];
+}
+
+/* ==================================================================
+   2. Estado
+   ================================================================== */
+
+var CFG = window.FLOW_CONFIG || {};
+var CLOUD = !!(CFG.supabaseUrl && CFG.supabaseKey &&
+               CFG.supabaseUrl.indexOf('PEGA_AQUI')<0 &&
+               CFG.supabaseKey.indexOf('PEGA_AQUI')<0 &&
+               window.supabase && window.supabase.createClient);
+
+var state = {
+  booted:false,
+  auth:{ status: CLOUD ? 'checking' : 'local', email:'', password:'', error:'', busy:false },
+  sync:{ status: CLOUD ? 'conectando' : 'local', pending:0 },
+  orders:[], quotes:[], params:Object.assign({},DEFAULT_PARAMS),
+  activeTab:'tablero', paramsOpen:false,
+  orderModal:null, orderError:'',
+  quoteModal:null, quoteError:'',
+  confirm:null,
+  excel:{ connected:false, fileName:'', needsPermission:false }
+};
+var draggedId=null, sb=null;
+
+function lsGet(k,f){ try{ var r=localStorage.getItem(k); return r?JSON.parse(r):f; }catch(e){ return f; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+function cacheSave(){
+  lsSet(CACHE_KEY,{ orders:state.orders, quotes:state.quotes, params:state.params });
+}
+function cacheLoad(){
+  var c=lsGet(CACHE_KEY,null);
+  if(!c) return false;
+  state.orders=(c.orders||[]).map(normalizeOrder);
+  state.quotes=c.quotes||[];
+  state.params=Object.assign({},DEFAULT_PARAMS,c.params||{});
+  return true;
+}
+
+/* ==================================================================
+   3. Capa de datos — local u online, misma interfaz
+   ================================================================== */
+
+var outbox = lsGet(OUTBOX_KEY,[]);
+var flushing=false;
+
+function enqueue(op){
+  if(!CLOUD) return;
+  outbox.push(op);
+  lsSet(OUTBOX_KEY,outbox);
+  state.sync.pending=outbox.length;
+  flush();
+}
+
+function orderToRow(o){
+  return { id:o.id, client:o.client, piece:o.piece, qty:o.qty, price:o.price,
+           material:o.material, notes:o.notes, stage:o.stage,
+           created_at:o.createdAt, entered_stage:o.enteredStage,
+           finished_at:o.finishedAt, archived:o.archived, quote:o.quote };
+}
+function orderFromRow(r){
+  return normalizeOrder({ id:r.id, client:r.client, piece:r.piece, qty:r.qty, price:r.price,
+    material:r.material, notes:r.notes, stage:r.stage,
+    createdAt:Number(r.created_at), enteredStage:Number(r.entered_stage),
+    finishedAt:r.finished_at==null?null:Number(r.finished_at),
+    archived:r.archived, quote:r.quote });
+}
+function quoteToRow(q){
+  return { id:q.id, client:q.client, piece:q.piece,
+           grams:q.grams, hours:q.hours, minutes:q.minutes,
+           created_at:q.createdAt,
+           breakdown:{ productionCost:q.productionCost, marginCost:q.marginCost,
+                       packaging:q.packaging, netPrice:q.netPrice, iva:q.iva,
+                       finalPrice:q.finalPrice, roundedPrice:q.roundedPrice } };
+}
+function quoteFromRow(r){
+  var b=r.breakdown||{};
+  return Object.assign({ id:r.id, client:r.client, piece:r.piece,
+    grams:Number(r.grams), hours:Number(r.hours), minutes:Number(r.minutes),
+    createdAt:Number(r.created_at) }, b);
+}
+
+function perform(op){
+  if(op.t==='order')      return sb.from('orders').upsert(orderToRow(op.row)).then(throwErr);
+  if(op.t==='orderDel')   return sb.from('orders').delete().eq('id',op.id).then(throwErr);
+  if(op.t==='quote')      return sb.from('quotes').upsert(quoteToRow(op.row)).then(throwErr);
+  if(op.t==='quoteDel')   return sb.from('quotes').delete().eq('id',op.id).then(throwErr);
+  if(op.t==='params')     return sb.from('settings').upsert({id:'default',params:op.params}).then(throwErr);
+  return Promise.resolve();
+}
+function throwErr(res){ if(res && res.error) throw res.error; return res; }
+
+function flush(){
+  if(!CLOUD || !sb || flushing || !outbox.length || state.auth.status!=='signedIn') return;
+  flushing=true;
+  perform(outbox[0]).then(function(){
+    outbox.shift();
+    lsSet(OUTBOX_KEY,outbox);
+    state.sync.pending=outbox.length;
+    flushing=false;
+    if(outbox.length) flush();
+    else { setSync('conectado'); render(); }
+  }).catch(function(err){
+    flushing=false;
+    setSync('sin conexión');
+    render();
+    if(err && err.code && String(err.code).indexOf('42')===0){
+      // error de esquema o permisos: reintentar en bucle no sirve
+      toast('Error de base de datos: '+(err.message||err.code),'err');
+      outbox.shift(); lsSet(OUTBOX_KEY,outbox); state.sync.pending=outbox.length;
+    }
+  });
+}
+function setSync(s){ state.sync.status=s; }
+
+setInterval(function(){ if(outbox.length) flush(); }, 8000);
+window.addEventListener('online', function(){ setSync('conectando'); render(); flush(); pullAll(); });
+window.addEventListener('offline', function(){ setSync('sin conexión'); render(); });
+
+function pullAll(){
+  if(!CLOUD || !sb) return Promise.resolve();
+  return Promise.all([
+    sb.from('orders').select('*'),
+    sb.from('quotes').select('*'),
+    sb.from('settings').select('*').eq('id','default').maybeSingle()
+  ]).then(function(res){
+    var o=res[0], q=res[1], s=res[2];
+    if(o.error) throw o.error;
+    if(q.error) throw q.error;
+    // Los cambios locales aún sin enviar no deben perderse al recibir el servidor
+    var pendingIds={};
+    outbox.forEach(function(op){ if(op.row) pendingIds[op.row.id]=1; if(op.id) pendingIds[op.id]=1; });
+
+    var serverOrders=(o.data||[]).map(orderFromRow).filter(function(r){ return !pendingIds[r.id]; });
+    var keptOrders=state.orders.filter(function(r){ return pendingIds[r.id]; });
+    state.orders=serverOrders.concat(keptOrders);
+
+    var serverQuotes=(q.data||[]).map(quoteFromRow).filter(function(r){ return !pendingIds[r.id]; });
+    var keptQuotes=state.quotes.filter(function(r){ return pendingIds[r.id]; });
+    state.quotes=serverQuotes.concat(keptQuotes);
+    state.quotes.sort(function(a,b){ return b.createdAt-a.createdAt; });
+
+    if(s && s.data && s.data.params) state.params=Object.assign({},DEFAULT_PARAMS,s.data.params);
+
+    cacheSave();
+    setSync(outbox.length?'sincronizando':'conectado');
+    render();
+  }).catch(function(err){
+    setSync('sin conexión');
+    render();
+    toast('No se pudieron cargar los datos: '+(err.message||'error'),'err');
+  });
+}
+
+function subscribeRealtime(){
+  if(!CLOUD||!sb) return;
+  sb.channel('flowstudio')
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(p){
+      if(p.eventType==='DELETE'){ state.orders=state.orders.filter(function(o){return o.id!==p.old.id;}); }
+      else {
+        var row=orderFromRow(p.new), found=false;
+        state.orders=state.orders.map(function(o){ if(o.id===row.id){found=true;return row;} return o; });
+        if(!found) state.orders=[row].concat(state.orders);
+      }
+      cacheSave(); render();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'quotes'},function(p){
+      if(p.eventType==='DELETE'){ state.quotes=state.quotes.filter(function(q){return q.id!==p.old.id;}); }
+      else {
+        var row=quoteFromRow(p.new), found=false;
+        state.quotes=state.quotes.map(function(q){ if(q.id===row.id){found=true;return row;} return q; });
+        if(!found) state.quotes=[row].concat(state.quotes);
+      }
+      cacheSave(); render();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'settings'},function(p){
+      if(p.new && p.new.params){ state.params=Object.assign({},DEFAULT_PARAMS,p.new.params); cacheSave(); render(); }
+    })
+    .subscribe(function(status){
+      if(status==='SUBSCRIBED'){ setSync(outbox.length?'sincronizando':'conectado'); render(); }
+    });
+}
+
+/* ==================================================================
+   4. Acciones
+   ================================================================== */
+
+function saveOrder(o){
+  var found=false;
+  state.orders=state.orders.map(function(x){ if(x.id===o.id){found=true;return o;} return x; });
+  if(!found) state.orders=[o].concat(state.orders);
+  cacheSave();
+  enqueue({t:'order',row:o});
+}
+function removeOrder(id){
+  state.orders=state.orders.filter(function(x){return x.id!==id;});
+  cacheSave();
+  enqueue({t:'orderDel',id:id});
+}
+function saveQuote(q){
+  var found=false;
+  state.quotes=state.quotes.map(function(x){ if(x.id===q.id){found=true;return q;} return x; });
+  if(!found) state.quotes=[q].concat(state.quotes);
+  cacheSave();
+  enqueue({t:'quote',row:q});
+}
+function removeQuote(id){
+  state.quotes=state.quotes.filter(function(x){return x.id!==id;});
+  cacheSave();
+  enqueue({t:'quoteDel',id:id});
+}
+
+var paramTimer=null;
+function setParamField(field,raw){
+  var v=parseFloat(String(raw).replace(',','.'));
+  state.params=Object.assign({},state.params);
+  state.params[field]=isNaN(v)?0:v;
+  cacheSave();
+  clearTimeout(paramTimer);
+  paramTimer=setTimeout(function(){ enqueue({t:'params',params:state.params}); },700);
+}
+function resetParams(){
+  state.params=Object.assign({},DEFAULT_PARAMS);
+  cacheSave();
+  enqueue({t:'params',params:state.params});
+  render();
+  toast('Parámetros restaurados');
+}
+
+function addQuote(){
+  var f=state.quoteModal;
+  if(!f.client.trim()||!f.piece.trim()||!f.grams||!f.hours){
+    state.quoteError='Completa cliente, pieza, gramos y horas.'; render(); return;
+  }
+  var g=parseFloat(f.grams)||0, h=parseFloat(f.hours)||0, m=parseFloat(f.minutes)||0;
+  var q=Object.assign({ id:uid('q'), client:f.client.trim(), piece:f.piece.trim(),
+                        grams:g, hours:h, minutes:m, createdAt:Date.now() },
+                      computeQuote(g,h,m,state.params));
+  saveQuote(q);
+  state.quoteModal=null; state.quoteError='';
+  render();
+  toast('Cotización guardada · $'+fmtCLP(q.roundedPrice));
+}
+
+function deleteQuote(id){
+  var q=state.quotes.filter(function(x){return x.id===id;})[0];
+  if(!q) return;
+  askConfirm({ title:'Eliminar cotización',
+    message:'¿Eliminar la cotización de «'+q.piece+'» para '+q.client+'?',
+    confirmLabel:'Eliminar', danger:true,
+    onConfirm:function(){ removeQuote(id); render(); toast('Cotización eliminada'); }});
+}
+
+function convertQuoteToOrder(id){
+  var q=state.quotes.filter(function(x){return x.id===id;})[0];
+  if(!q) return;
+  var now=Date.now();
+  var o=normalizeOrder({ id:uid('o'), client:q.client, piece:q.piece, qty:1,
+    price:fmtCLP(q.roundedPrice), stage:'pedidos', createdAt:now, enteredStage:now,
+    quote:{ grams:q.grams, hours:q.hours, minutes:q.minutes,
+            productionCost:q.productionCost, netPrice:q.netPrice,
+            iva:q.iva, roundedPrice:q.roundedPrice } });
+  saveOrder(o);
+  removeQuote(id);
+  state.activeTab='tablero';
+  render();
+  toast('«'+o.piece+'» pasó a Pedidos');
+}
+
+function submitOrder(){
+  var f=state.orderModal;
+  if(!f.client.trim()||!f.piece.trim()){
+    state.orderError='Completa al menos el cliente y la pieza.'; render(); return;
+  }
+  if(f.mode==='edit'){
+    var cur=state.orders.filter(function(x){return x.id===f.id;})[0];
+    if(cur) saveOrder(Object.assign({},cur,{
+      client:f.client.trim(), piece:f.piece.trim(), qty:parseInt(f.qty,10)||1,
+      price:f.price.trim(), material:f.material.trim(), notes:f.notes.trim() }));
+    state.orderModal=null; state.orderError=''; render(); toast('Pedido actualizado');
+  } else {
+    var now=Date.now();
+    saveOrder(normalizeOrder({ id:uid('o'), client:f.client.trim(), piece:f.piece.trim(),
+      qty:f.qty, price:f.price.trim(), material:f.material.trim(), notes:f.notes.trim(),
+      stage:'pedidos', createdAt:now, enteredStage:now }));
+    state.orderModal=null; state.orderError=''; render(); toast('Pedido agregado');
+  }
+}
+
+function deleteOrder(id){
+  var o=state.orders.filter(function(x){return x.id===id;})[0];
+  if(!o) return;
+  askConfirm({ title:'Eliminar pedido',
+    message:'¿Eliminar «'+o.piece+'» de '+o.client+'? Esta acción no se puede deshacer.',
+    confirmLabel:'Eliminar', danger:true,
+    onConfirm:function(){ removeOrder(id); render(); toast('Pedido eliminado'); }});
+}
+
+function moveOrder(id,toStage){
+  var o=state.orders.filter(function(x){return x.id===id;})[0];
+  if(!o||o.stage===toStage) return;
+  var now=Date.now();
+  var next=Object.assign({},o,{ stage:toStage, enteredStage:now,
+    finishedAt: toStage==='finalizado' ? now : null });
+  saveOrder(next);
+  render();
+  if(toStage==='finalizado'){
+    toast('«'+next.piece+'» finalizado · registrado en el Excel');
+    pushExcel();
+  }
+}
+
+function archiveFinished(){
+  var list=state.orders.filter(function(o){return o.stage==='finalizado'&&!o.archived;});
+  if(!list.length) return;
+  askConfirm({ title:'Archivar finalizados',
+    message:'Se quitarán '+list.length+' pedido(s) del tablero. Seguirán en el Excel y en el historial.',
+    confirmLabel:'Archivar',
+    onConfirm:function(){
+      list.forEach(function(o){ saveOrder(Object.assign({},o,{archived:true})); });
+      render();
+      toast(list.length+' pedido(s) archivados');
+    }});
+}
+
+function finishedOrders(){
+  return state.orders.filter(function(o){return o.stage==='finalizado';})
+                     .sort(function(a,b){return (a.finishedAt||0)-(b.finishedAt||0);});
+}
+
+/* ==================================================================
+   5. Excel (.xlsx generado sin librerías)
+   ================================================================== */
+
+var CRC_TABLE=(function(){var t=new Uint32Array(256);
+  for(var i=0;i<256;i++){var c=i;for(var k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0;}
+  return t;})();
+function crc32(b){var c=0xFFFFFFFF;for(var i=0;i<b.length;i++)c=CRC_TABLE[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+function zipStore(entries){
+  var enc=new TextEncoder(), now=new Date();
+  var dosTime=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
+  var dosDate=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  var parts=[],central=[],offset=0;
+  entries.forEach(function(e){
+    var name=enc.encode(e.name), data=enc.encode(e.content), crc=crc32(data);
+    var lh=new Uint8Array(30+name.length), d=new DataView(lh.buffer);
+    d.setUint32(0,0x04034b50,true); d.setUint16(4,20,true); d.setUint16(6,0x0800,true); d.setUint16(8,0,true);
+    d.setUint16(10,dosTime,true); d.setUint16(12,dosDate,true);
+    d.setUint32(14,crc,true); d.setUint32(18,data.length,true); d.setUint32(22,data.length,true);
+    d.setUint16(26,name.length,true); d.setUint16(28,0,true);
+    lh.set(name,30); parts.push(lh,data);
+    var ch=new Uint8Array(46+name.length), c=new DataView(ch.buffer);
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true);
+    c.setUint16(8,0x0800,true); c.setUint16(10,0,true);
+    c.setUint16(12,dosTime,true); c.setUint16(14,dosDate,true);
+    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true);
+    c.setUint16(28,name.length,true); c.setUint32(42,offset,true);
+    ch.set(name,46); central.push(ch);
+    offset+=lh.length+data.length;
+  });
+  var cSize=central.reduce(function(a,b){return a+b.length;},0);
+  var eo=new Uint8Array(22), v=new DataView(eo.buffer);
+  v.setUint32(0,0x06054b50,true);
+  v.setUint16(8,entries.length,true); v.setUint16(10,entries.length,true);
+  v.setUint32(12,cSize,true); v.setUint32(16,offset,true);
+  return new Blob(parts.concat(central,[eo]),
+    {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+function xmlEsc(s){
+  return String(s==null?'':s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function colLetter(i){var s='';i+=1;while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+
+var EXCEL_COLS=[
+  {title:'Fecha finalización',width:18,type:'text'},
+  {title:'Cliente',width:22,type:'text'},
+  {title:'Pieza',width:30,type:'text'},
+  {title:'Cantidad',width:10,type:'int'},
+  {title:'Material',width:20,type:'text'},
+  {title:'Precio cobrado',width:15,type:'money',sum:true},
+  {title:'Gramos',width:10,type:'num'},
+  {title:'Horas',width:9,type:'num'},
+  {title:'Costo producción',width:17,type:'money',sum:true},
+  {title:'Precio neto',width:14,type:'money',sum:true},
+  {title:'IVA',width:12,type:'money',sum:true},
+  {title:'Ganancia estimada',width:18,type:'money',sum:true},
+  {title:'Días en taller',width:14,type:'int'},
+  {title:'Notas',width:34,type:'text'}
+];
+
+function historyRows(){
+  return finishedOrders().map(function(h){
+    var q=h.quote||{}, price=parseCLP(h.price);
+    var prod=q.productionCost!=null?q.productionCost:null;
+    return [ fmtDate(h.finishedAt), h.client, h.piece, h.qty, h.material, price,
+             q.grams!=null?q.grams:null, q.hours!=null?q.hours:null, prod,
+             q.netPrice!=null?q.netPrice:null, q.iva!=null?q.iva:null,
+             (price!=null&&prod!=null)?price-prod:null,
+             daysBetween(h.createdAt,h.finishedAt), h.notes ];
+  });
+}
+
+function buildXlsx(){
+  var rows=historyRows();
+  var cols='<cols>'+EXCEL_COLS.map(function(c,i){
+    return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+c.width+'" customWidth="1"/>';}).join('')+'</cols>';
+  var sr=[];
+  sr.push('<row r="1" ht="22" customHeight="1">'+EXCEL_COLS.map(function(c,i){
+    return '<c r="'+colLetter(i)+'1" s="1" t="inlineStr"><is><t>'+xmlEsc(c.title)+'</t></is></c>';}).join('')+'</row>');
+  rows.forEach(function(row,r){
+    var rn=r+2;
+    sr.push('<row r="'+rn+'">'+row.map(function(val,i){
+      var ref=colLetter(i)+rn, def=EXCEL_COLS[i];
+      if(val==null||val==='') return '';
+      if(def.type==='text') return '<c r="'+ref+'" t="inlineStr"><is><t>'+xmlEsc(val)+'</t></is></c>';
+      var s=def.type==='money'?' s="2"':(def.type==='num'?' s="3"':'');
+      return '<c r="'+ref+'"'+s+'><v>'+Number(val)+'</v></c>';
+    }).join('')+'</row>');
+  });
+  if(rows.length){
+    var tr=rows.length+2;
+    sr.push('<row r="'+tr+'">'+EXCEL_COLS.map(function(c,i){
+      var ref=colLetter(i)+tr;
+      if(i===0) return '<c r="'+ref+'" s="4" t="inlineStr"><is><t>TOTAL ('+rows.length+')</t></is></c>';
+      if(c.sum) return '<c r="'+ref+'" s="5"><f>SUM('+colLetter(i)+'2:'+colLetter(i)+(rows.length+1)+')</f></c>';
+      return '<c r="'+ref+'" s="4"/>';
+    }).join('')+'</row>');
+  }
+  var lastRef=colLetter(EXCEL_COLS.length-1)+Math.max(1,rows.length+2);
+  var sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<dimension ref="A1:'+lastRef+'"/>'+
+    '<sheetViews><sheetView workbookViewId="0" tabSelected="1">'+
+    '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'+
+    '<sheetFormatPr defaultRowHeight="15"/>'+cols+
+    '<sheetData>'+sr.join('')+'</sheetData>'+
+    (rows.length?'<autoFilter ref="A1:'+colLetter(EXCEL_COLS.length-1)+(rows.length+1)+'"/>':'')+
+    '</worksheet>';
+
+  var styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<numFmts count="2"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0"/>'+
+    '<numFmt numFmtId="165" formatCode="#,##0.##"/></numFmts>'+
+    '<fonts count="3"><font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>'+
+    '<font><b/><sz val="11"/><color rgb="FFF4F1E9"/><name val="Calibri"/></font>'+
+    '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/></font></fonts>'+
+    '<fills count="3"><fill><patternFill patternType="none"/></fill>'+
+    '<fill><patternFill patternType="gray125"/></fill>'+
+    '<fill><patternFill patternType="solid"><fgColor rgb="FF13361C"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+
+    '<border><left/><right/><top style="thin"><color rgb="FF13361C"/></top><bottom/><diagonal/></border></borders>'+
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="6">'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>'+
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+
+    '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>'+
+    '<xf numFmtId="164" fontId="2" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'+
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  return zipStore([
+    {name:'[Content_Types].xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+    {name:'_rels/.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '+
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+      '<sheets><sheet name="Pedidos finalizados" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+    {name:'xl/_rels/workbook.xml.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/styles.xml',content:styles},
+    {name:'xl/worksheets/sheet1.xml',content:sheet}
+  ]);
+}
+
+var EXCEL_FILENAME='Flow Studio - Pedidos finalizados.xlsx';
+
+function downloadXlsx(){
+  if(!finishedOrders().length){ toast('Aún no hay pedidos finalizados que exportar','warn'); return; }
+  var url=URL.createObjectURL(buildXlsx());
+  var a=document.createElement('a');
+  a.href=url; a.download=EXCEL_FILENAME;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  toast('Excel descargado ('+finishedOrders().length+' pedidos)');
+}
+
+var fileHandle=null;
+var FSA_OK = typeof window.showSaveFilePicker==='function';
+
+function idbOpen(){ return new Promise(function(res,rej){
+  var r=indexedDB.open('flowstudio',1);
+  r.onupgradeneeded=function(){ r.result.createObjectStore('kv'); };
+  r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);};
+});}
+function idbSet(k,v){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+  var t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k);
+  t.oncomplete=function(){res();}; t.onerror=function(){rej(t.error);};
+});});}
+function idbGet(k){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+  var t=db.transaction('kv','readonly'), q=t.objectStore('kv').get(k);
+  q.onsuccess=function(){res(q.result);}; q.onerror=function(){rej(q.error);};
+});});}
+
+function connectExcel(){
+  if(!FSA_OK){ downloadXlsx(); return; }
+  window.showSaveFilePicker({ suggestedName:EXCEL_FILENAME,
+    types:[{description:'Libro de Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
+  }).then(function(h){
+    fileHandle=h;
+    state.excel={connected:true,fileName:h.name,needsPermission:false};
+    idbSet('excelHandle',h).catch(function(){});
+    return writeToHandle();
+  }).then(function(){ render(); toast('Excel conectado · se actualizará solo al finalizar pedidos'); })
+    .catch(function(err){
+      if(err&&err.name==='AbortError') return;
+      state.excel.connected=false; render();
+      toast('No se pudo conectar el archivo. Usa "Descargar Excel".','err');
+    });
+}
+function writeToHandle(){
+  if(!fileHandle) return Promise.resolve();
+  return fileHandle.createWritable().then(function(w){
+    return w.write(buildXlsx()).then(function(){ return w.close(); });
+  });
+}
+function pushExcel(){
+  if(!fileHandle||!state.excel.connected) return;
+  fileHandle.queryPermission({mode:'readwrite'}).then(function(p){
+    if(p!=='granted'){ state.excel.needsPermission=true; render(); return; }
+    return writeToHandle().then(function(){ state.excel.needsPermission=false; render(); });
+  }).catch(function(){
+    state.excel.connected=false; state.excel.needsPermission=true; render();
+    toast('Se perdió el acceso al Excel. Vuelve a conectarlo.','warn');
+  });
+}
+function reconnectExcel(){
+  if(!fileHandle){ connectExcel(); return; }
+  fileHandle.requestPermission({mode:'readwrite'}).then(function(p){
+    if(p==='granted'){
+      state.excel.connected=true; state.excel.needsPermission=false;
+      return writeToHandle().then(function(){ render(); toast('Excel reactivado y actualizado'); });
+    }
+    toast('Permiso denegado','warn');
+  }).catch(function(){ connectExcel(); });
+}
+function restoreExcelHandle(){
+  if(!FSA_OK) return;
+  idbGet('excelHandle').then(function(h){
+    if(!h) return;
+    fileHandle=h; state.excel.fileName=h.name;
+    return h.queryPermission({mode:'readwrite'}).then(function(p){
+      state.excel.connected=(p==='granted');
+      state.excel.needsPermission=(p!=='granted');
+      render();
+    });
+  }).catch(function(){});
+}
+
+/* ==================================================================
+   6. Render
+   ================================================================== */
+
+function esc(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function render(){
+  var h;
+  if(state.auth.status==='checking') h=checkingHtml();
+  else if(state.auth.status==='signedOut') h=gateHtml();
+  else h=appHtml();
+  document.getElementById('app').innerHTML=h;
+  var f=document.querySelector('[data-autofocus]');
+  if(f) f.focus();
+}
+
+function checkingHtml(){
+  return '<div class="gate"><div class="gate-card"><div class="gate-brand">'+
+    '<img src="uploads/logo.png" alt="" onerror="this.style.display=\'none\'"/>'+
+    '<div class="t">Flow Studio</div><div class="s">Conectando…</div></div></div></div>';
+}
+
+function gateHtml(){
+  var a=state.auth;
+  return '<div class="gate"><form class="gate-card" data-act="login-form">'+
+    '<div class="gate-brand"><img src="uploads/logo.png" alt="" onerror="this.style.display=\'none\'"/>'+
+    '<div class="t">Flow Studio</div><div class="s">Pedidos de impresión 3D</div></div>'+
+    '<label>Correo<input type="email" autocomplete="username" value="'+esc(a.email)+'" data-input="auth" data-field="email" data-autofocus/></label>'+
+    '<label>Contraseña<input type="password" autocomplete="current-password" value="'+esc(a.password)+'" data-input="auth" data-field="password"/></label>'+
+    (a.error?'<div class="form-error">'+esc(a.error)+'</div>':'')+
+    '<button type="submit" class="btn-submit"'+(a.busy?' disabled':'')+'>'+
+      (a.busy?'<span class="spinner"></span> Entrando…':'Entrar')+'</button>'+
+    '<div class="hint">Tus pedidos se sincronizan entre todos tus dispositivos.</div>'+
+    '</form></div>';
+}
+
+function appHtml(){
+  var now=Date.now(), isQuotes=state.activeTab==='cotizaciones';
+  var visible=state.orders.filter(function(o){return !o.archived;});
+  var stale=visible.filter(function(o){
+    return o.stage!=='finalizado' && daysBetween(o.enteredStage,now)>=STALE_DAYS; });
+
+  var h='<div class="app"><header class="topbar"><div class="brand">'+
+    '<img src="uploads/logo.png" alt="Flow Studio" onerror="this.style.visibility=\'hidden\'"/>'+
+    '<div><div class="name">Flow Studio</div><div class="sub">Pedidos de impresión 3D</div></div></div>'+
+    '<div class="top-right">'+
+    (isQuotes
+      ? '<button class="btn-primary-light" data-act="new-quote"><span class="plus">+</span> Nueva cotización</button>'
+      : '<button class="btn-primary-light" data-act="new-order"><span class="plus">+</span> Nuevo pedido</button>')+
+    (CLOUD?'<button class="btn-ghost-light" data-act="logout">Salir</button>':'')+
+    '</div></header>';
+
+  var qn=state.quotes.length;
+  h+='<div class="tabs-bar"><div class="tabs">'+
+    '<button class="tab" data-act="tab" data-tab="cotizaciones" style="background:'+(isQuotes?'#fff':'transparent')+';color:'+(isQuotes?'#13361C':'#6b7b6e')+'">Cotizaciones'+(qn?' ('+qn+')':'')+'</button>'+
+    '<button class="tab" data-act="tab" data-tab="tablero" style="background:'+(!isQuotes?'#fff':'transparent')+';color:'+(!isQuotes?'#13361C':'#6b7b6e')+'">Tablero de pedidos</button>'+
+    '</div>'+barHtml()+'</div>';
+
+  if(stale.length){
+    h+='<div class="stale-banner"><span class="dot"></span>'+
+      (stale.length===1?'1 pedido lleva '+STALE_DAYS+'+ días sin avanzar de etapa'
+                       :stale.length+' pedidos llevan '+STALE_DAYS+'+ días sin avanzar de etapa')+'</div>';
+  }
+
+  h+= isQuotes ? quotesTabHtml() : boardHtml(now,visible);
+  h+='</div>';
+
+  if(state.orderModal) h+=orderModalHtml();
+  if(state.quoteModal) h+=quoteModalHtml();
+  if(state.confirm)    h+=confirmModalHtml();
+  return h;
+}
+
+function barHtml(){
+  var h='<div class="excel-bar">';
+
+  if(CLOUD){
+    var s=state.sync.status;
+    var cls = s==='conectado' ? 'on' : (s==='sin conexión' ? 'warn' : 'off');
+    var txt = s==='conectado' ? 'Sincronizado'
+            : s==='sin conexión' ? 'Sin conexión'+(state.sync.pending?' · '+state.sync.pending+' por enviar':'')
+            : s==='sincronizando' ? 'Sincronizando…' : 'Conectando…';
+    h+='<span class="pill '+cls+'"><span class="dot"></span>'+txt+'</span>';
+  } else {
+    h+='<span class="pill off"><span class="dot"></span>Solo en este equipo</span>';
+  }
+
+  var e=state.excel, total=finishedOrders().length;
+  if(e.connected&&!e.needsPermission){
+    h+='<span class="pill on"><span class="dot"></span>Excel · '+esc(e.fileName)+'</span>';
+  } else if(e.needsPermission){
+    h+='<button class="btn-soft accent" data-act="excel-reconnect">Reactivar Excel</button>';
+  } else if(FSA_OK){
+    h+='<button class="btn-soft accent" data-act="excel-connect">Conectar Excel</button>';
+  }
+  h+='<button class="btn-soft" data-act="excel-download">Descargar Excel'+(total?' ('+total+')':'')+'</button>';
+  return h+'</div>';
+}
+
+function quotesTabHtml(){
+  var h='<div class="quotes-wrap"><div class="params-card">'+
+    '<button class="params-toggle" data-act="toggle-params">Parámetros de costo <span>'+(state.paramsOpen?'▲':'▼')+'</span></button>';
+  if(state.paramsOpen){
+    h+='<div class="params-grid">';
+    Object.keys(DEFAULT_PARAMS).forEach(function(k){
+      h+='<label>'+esc(PARAM_LABELS[k])+'<input type="number"'+
+         (PARAM_STEP[k]?' step="'+PARAM_STEP[k]+'"':'')+' value="'+esc(state.params[k])+
+         '" data-input="param" data-field="'+k+'"/></label>';
+    });
+    h+='</div><div class="params-foot"><button class="btn-soft" data-act="params-reset">Restaurar valores por defecto</button></div>';
+  }
+  h+='</div><div class="section-title">Cotizaciones pendientes ('+state.quotes.length+')</div>';
+
+  if(!state.quotes.length)
+    h+='<div class="empty-box">No hay cotizaciones aún. Crea una con «+ Nueva cotización».</div>';
+
+  state.quotes.forEach(function(q){
+    h+='<div class="quote-card"><div class="top"><div>'+
+      '<div class="piece">'+esc(q.piece)+'</div><div class="client">'+esc(q.client)+'</div></div>'+
+      '<div style="text-align:right"><div class="price-label">PRECIO SUGERIDO</div>'+
+      '<div class="price">$'+fmtCLP(q.roundedPrice)+'</div></div></div>'+
+      '<div class="chips"><span class="chip">'+esc(q.grams)+' g filamento</span>'+
+      '<span class="chip">'+esc(q.hours)+' h impresión</span>'+
+      (q.minutes?'<span class="chip">'+esc(q.minutes)+' min trabajo</span>':'')+'</div>'+
+      '<div class="breakdown">Costo prod. $'+fmtCLP(q.productionCost)+' · Neto $'+fmtCLP(q.netPrice)+' · IVA $'+fmtCLP(q.iva)+'</div>'+
+      '<div class="actions"><button class="btn-convert" data-act="convert" data-id="'+esc(q.id)+'">Pasar a Pedidos →</button>'+
+      '<button class="btn-x" title="Eliminar" data-act="del-quote" data-id="'+esc(q.id)+'">✕</button></div></div>';
+  });
+  return h+'</div>';
+}
+
+function boardHtml(now,visible){
+  var h='<div class="board">';
+  STAGES.forEach(function(stage,si){
+    var list=visible.filter(function(o){return o.stage===stage.id;});
+    h+='<div class="column" data-stage="'+stage.id+'">'+
+      '<div class="col-head"><div class="left"><span class="col-dot" style="background:'+stage.color+'"></span>'+
+      '<span class="col-label">'+esc(stage.label)+'</span></div>'+
+      '<span class="col-count">'+list.length+'</span></div>';
+    if(!list.length) h+='<div class="empty-box" style="padding:26px 12px;font-size:13px">Sin pedidos aquí</div>';
+
+    list.forEach(function(o){
+      var days=daysBetween(o.enteredStage,now);
+      var isStale=days>=STALE_DAYS&&o.stage!=='finalizado';
+      var prev=STAGES[si-1], next=STAGES[si+1];
+      h+='<div class="order-card" draggable="true" data-id="'+esc(o.id)+'">'+
+        '<div class="top"><div class="piece">'+esc(o.piece)+'</div>'+
+        (isStale?'<span class="stale-badge" title="Lleva '+days+' días en esta etapa">⏱ '+days+'d</span>':'')+'</div>'+
+        '<div class="client">'+esc(o.client)+'</div><div class="chips">'+
+        '<span class="chip">Cant: '+esc(o.qty)+'</span>'+
+        (o.material?'<span class="chip">'+esc(o.material)+'</span>':'')+
+        (o.price?'<span class="chip">$'+esc(o.price)+'</span>':'')+
+        (o.stage==='finalizado'&&o.finishedAt?'<span class="chip">✓ '+fmtDate(o.finishedAt)+'</span>':'')+
+        '</div>'+
+        (o.notes?'<div class="notes">'+esc(o.notes)+'</div>':'')+
+        '<div class="actions">'+
+        (prev?'<button class="btn-prev" data-act="move" data-id="'+esc(o.id)+'" data-stage="'+prev.id+'">← '+esc(prev.label)+'</button>':'')+
+        (next?'<button class="btn-next" data-act="move" data-id="'+esc(o.id)+'" data-stage="'+next.id+'">'+esc(next.label)+' →</button>':'')+
+        '<button class="btn-icon" title="Editar" data-act="edit-order" data-id="'+esc(o.id)+'">✎</button>'+
+        '<button class="btn-icon danger" title="Eliminar" data-act="del-order" data-id="'+esc(o.id)+'">✕</button>'+
+        '</div></div>';
+    });
+
+    if(stage.id==='finalizado'&&list.length)
+      h+='<div class="col-foot"><button class="btn-archive" data-act="archive">Archivar '+list.length+' finalizado(s)</button></div>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+
+function fieldHtml(l,c){ return '<label>'+esc(l)+c+'</label>'; }
+
+function orderModalHtml(){
+  var f=state.orderModal, ed=f.mode==='edit';
+  var h='<div class="overlay" data-act="close-order"><div class="modal" data-stop>'+
+    '<div class="head"><div class="title">'+(ed?'Editar pedido':'Nuevo pedido')+'</div>'+
+    '<button class="close" data-act="close-order">✕</button></div>'+
+    fieldHtml('Cliente','<input value="'+esc(f.client)+'" placeholder="Nombre del cliente" data-input="order" data-field="client" data-autofocus/>')+
+    fieldHtml('Pieza / descripción','<input value="'+esc(f.piece)+'" placeholder="Ej: Lámpara Nube, 20cm" data-input="order" data-field="piece"/>')+
+    '<div class="grid2">'+
+    fieldHtml('Cantidad','<input type="number" min="1" value="'+esc(f.qty)+'" data-input="order" data-field="qty"/>')+
+    fieldHtml('Precio (CLP)','<input value="'+esc(f.price)+'" placeholder="Opcional" data-input="order" data-field="price"/>')+
+    '</div>'+
+    fieldHtml('Material / color','<input value="'+esc(f.material)+'" placeholder="Ej: PLA blanco" data-input="order" data-field="material"/>')+
+    fieldHtml('Notas','<textarea rows="2" placeholder="Detalles, fecha de entrega, etc." data-input="order" data-field="notes">'+esc(f.notes)+'</textarea>')+
+    (state.orderError?'<div class="form-error">'+esc(state.orderError)+'</div>':'')+
+    '<button class="btn-submit" data-act="submit-order">'+(ed?'Guardar cambios':'Agregar a Pedidos')+'</button>';
+  return h+'</div></div>';
+}
+
+function quotePreviewHtml(p){
+  return '<div class="row"><span>Costo producción</span><span>$'+fmtCLP(p.productionCost)+'</span></div>'+
+    '<div class="row"><span>Margen</span><span>$'+fmtCLP(p.marginCost)+'</span></div>'+
+    '<div class="row"><span>Embalaje</span><span>$'+fmtCLP(p.packaging)+'</span></div>'+
+    '<div class="row bold"><span>Precio neto</span><span>$'+fmtCLP(p.netPrice)+'</span></div>'+
+    '<div class="row"><span>IVA ('+Math.round(state.params.iva*100)+'%)</span><span>$'+fmtCLP(p.iva)+'</span></div>'+
+    '<div class="row total"><span>Precio redondeado</span><span>$'+fmtCLP(p.roundedPrice)+'</span></div>';
+}
+
+function quoteModalHtml(){
+  var f=state.quoteModal;
+  var p=computeQuote(parseFloat(f.grams)||0,parseFloat(f.hours)||0,parseFloat(f.minutes)||0,state.params);
+  var h='<div class="overlay" data-act="close-quote"><div class="modal wide" data-stop>'+
+    '<div class="head"><div class="title">Nueva cotización</div><button class="close" data-act="close-quote">✕</button></div>'+
+    fieldHtml('Cliente','<input value="'+esc(f.client)+'" placeholder="Nombre del cliente" data-input="quote" data-field="client" data-autofocus/>')+
+    fieldHtml('Pieza / descripción','<input value="'+esc(f.piece)+'" placeholder="Ej: Lámpara Nube, 20cm" data-input="quote" data-field="piece"/>')+
+    '<div class="grid3">'+
+    fieldHtml('Gramos','<input type="number" min="0" value="'+esc(f.grams)+'" data-input="quote" data-field="grams"/>')+
+    fieldHtml('Horas','<input type="number" min="0" step="0.1" value="'+esc(f.hours)+'" data-input="quote" data-field="hours"/>')+
+    fieldHtml('Min. trabajo','<input type="number" min="0" value="'+esc(f.minutes)+'" placeholder="0" data-input="quote" data-field="minutes"/>')+
+    '</div><div class="preview-box" id="quote-preview">'+quotePreviewHtml(p)+'</div>'+
+    (state.quoteError?'<div class="form-error">'+esc(state.quoteError)+'</div>':'')+
+    '<button class="btn-submit" data-act="submit-quote">Guardar cotización</button>';
+  return h+'</div></div>';
+}
+
+function confirmModalHtml(){
+  var c=state.confirm;
+  return '<div class="overlay" data-act="confirm-cancel"><div class="modal narrow" data-stop>'+
+    '<div class="head"><div class="title">'+esc(c.title)+'</div></div>'+
+    '<div class="msg">'+esc(c.message)+'</div>'+
+    '<div class="confirm-actions">'+
+    '<button class="btn-cancel" data-act="confirm-cancel">Cancelar</button>'+
+    '<button class="'+(c.danger?'btn-danger':'btn-submit')+'" style="margin-top:0" data-act="confirm-ok" data-autofocus>'+
+    esc(c.confirmLabel||'Aceptar')+'</button></div></div></div>';
+}
+
+function askConfirm(cfg){ state.confirm=cfg; render(); }
+
+function toast(msg,kind){
+  var box=document.getElementById('toasts');
+  var el=document.createElement('div');
+  el.className='toast'+(kind?' '+kind:'');
+  el.textContent=msg;
+  box.appendChild(el);
+  setTimeout(function(){el.remove();},3400);
+}
+
+/* ==================================================================
+   7. Eventos — registrados UNA sola vez
+   ================================================================== */
+
+var root=document.getElementById('app');
+
+root.addEventListener('submit',function(e){
+  if(e.target.closest('[data-act="login-form"]')){ e.preventDefault(); doLogin(); }
+});
+
+root.addEventListener('click',function(e){
+  var stopper=e.target.closest('[data-stop]');
+  var el=e.target.closest('[data-act]');
+  if(!el) return;
+  if(stopper && !stopper.contains(el) && el.contains(stopper)) return;
+
+  var act=el.getAttribute('data-act'), id=el.getAttribute('data-id');
+  switch(act){
+    case 'tab': state.activeTab=el.getAttribute('data-tab'); render(); break;
+    case 'toggle-params': state.paramsOpen=!state.paramsOpen; render(); break;
+    case 'params-reset': resetParams(); break;
+
+    case 'new-quote': state.quoteModal={client:'',piece:'',grams:'',hours:'',minutes:''}; state.quoteError=''; render(); break;
+    case 'close-quote': state.quoteModal=null; state.quoteError=''; render(); break;
+    case 'submit-quote': addQuote(); break;
+    case 'convert': convertQuoteToOrder(id); break;
+    case 'del-quote': deleteQuote(id); break;
+
+    case 'new-order': state.orderModal={mode:'new',client:'',piece:'',qty:'1',price:'',material:'',notes:''}; state.orderError=''; render(); break;
+    case 'edit-order':
+      var o=state.orders.filter(function(x){return x.id===id;})[0];
+      if(o){ state.orderModal={mode:'edit',id:o.id,client:o.client,piece:o.piece,
+              qty:String(o.qty),price:o.price,material:o.material,notes:o.notes};
+             state.orderError=''; render(); }
+      break;
+    case 'close-order': state.orderModal=null; state.orderError=''; render(); break;
+    case 'submit-order': submitOrder(); break;
+    case 'move': moveOrder(id,el.getAttribute('data-stage')); break;
+    case 'del-order': deleteOrder(id); break;
+    case 'archive': archiveFinished(); break;
+
+    case 'excel-connect': connectExcel(); break;
+    case 'excel-reconnect': reconnectExcel(); break;
+    case 'excel-download': downloadXlsx(); break;
+
+    case 'logout': doLogout(); break;
+
+    case 'confirm-ok':
+      var fn=state.confirm&&state.confirm.onConfirm;
+      state.confirm=null; render(); if(fn) fn();
+      break;
+    case 'confirm-cancel': state.confirm=null; render(); break;
+  }
+});
+
+root.addEventListener('input',function(e){
+  var el=e.target.closest('[data-input]');
+  if(!el) return;
+  var kind=el.getAttribute('data-input'), field=el.getAttribute('data-field');
+  if(kind==='param') setParamField(field,el.value);
+  else if(kind==='order') state.orderModal[field]=el.value;
+  else if(kind==='auth')  state.auth[field]=el.value;
+  else if(kind==='quote'){
+    state.quoteModal[field]=el.value;
+    var box=document.getElementById('quote-preview');
+    if(box){
+      var f=state.quoteModal;
+      box.innerHTML=quotePreviewHtml(computeQuote(parseFloat(f.grams)||0,parseFloat(f.hours)||0,parseFloat(f.minutes)||0,state.params));
+    }
+  }
+});
+
+root.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target.tagName==='INPUT'){
+    if(state.quoteModal){ e.preventDefault(); addQuote(); }
+    else if(state.orderModal){ e.preventDefault(); submitOrder(); }
+  }
+});
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  if(state.confirm){ state.confirm=null; render(); }
+  else if(state.quoteModal){ state.quoteModal=null; state.quoteError=''; render(); }
+  else if(state.orderModal){ state.orderModal=null; state.orderError=''; render(); }
+});
+
+root.addEventListener('dragstart',function(e){
+  var c=e.target.closest('.order-card'); if(!c) return;
+  draggedId=c.getAttribute('data-id'); c.classList.add('dragging');
+  try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',draggedId); }catch(err){}
+});
+root.addEventListener('dragend',function(e){
+  var c=e.target.closest('.order-card'); if(c) c.classList.remove('dragging');
+  clearHi();
+});
+root.addEventListener('dragover',function(e){
+  var col=e.target.closest('.column'); if(!col) return;
+  e.preventDefault(); e.dataTransfer.dropEffect='move';
+  if(!col.classList.contains('dragover')){ clearHi(); col.classList.add('dragover'); }
+});
+root.addEventListener('dragleave',function(e){
+  var col=e.target.closest('.column');
+  if(col&&!col.contains(e.relatedTarget)) col.classList.remove('dragover');
+});
+root.addEventListener('drop',function(e){
+  var col=e.target.closest('.column'); if(!col) return;
+  e.preventDefault(); clearHi();
+  var id=draggedId||e.dataTransfer.getData('text/plain');
+  draggedId=null;
+  if(id) moveOrder(id,col.getAttribute('data-stage'));
+});
+function clearHi(){ root.querySelectorAll('.column.dragover').forEach(function(c){c.classList.remove('dragover');}); }
+
+/* ==================================================================
+   8. Sesión y arranque
+   ================================================================== */
+
+function doLogin(){
+  var a=state.auth;
+  if(!a.email.trim()||!a.password){ a.error='Escribe tu correo y contraseña.'; render(); return; }
+  a.busy=true; a.error=''; render();
+  sb.auth.signInWithPassword({email:a.email.trim(),password:a.password}).then(function(res){
+    a.busy=false;
+    if(res.error){
+      a.error = /invalid/i.test(res.error.message||'')
+        ? 'Correo o contraseña incorrectos.' : (res.error.message||'No se pudo entrar.');
+      render(); return;
+    }
+    a.password=''; a.status='signedIn';
+    startSession();
+  }).catch(function(err){
+    a.busy=false;
+    a.error='No se pudo conectar con el servidor.';
+    render();
+  });
+}
+
+function doLogout(){
+  askConfirm({ title:'Cerrar sesión', message:'¿Seguro que quieres salir?', confirmLabel:'Salir',
+    onConfirm:function(){
+      try{ localStorage.removeItem(CACHE_KEY); }catch(e){}
+      sb.auth.signOut().then(function(){
+        state.orders=[]; state.quotes=[];
+        state.auth.status='signedOut'; state.auth.password='';
+        render();
+      });
+    }});
+}
+
+function startSession(){
+  if(!cacheLoad()) { state.orders=[]; state.quotes=[]; }
+  render();
+  subscribeRealtime();
+  pullAll().then(function(){ flush(); });
+  restoreExcelHandle();
+}
+
+function boot(){
+  if(!CLOUD){
+    if(!cacheLoad()) seedOrders().forEach(function(o){ state.orders.push(o); });
+    cacheSave();
+    state.auth.status='local';
+    render();
+    restoreExcelHandle();
+    if(CFG.supabaseUrl && CFG.supabaseUrl.indexOf('PEGA_AQUI')>=0)
+      setTimeout(function(){ toast('Sin sincronizar: falta configurar config.js','warn'); },700);
+    return;
+  }
+  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey);
+  sb.auth.getSession().then(function(res){
+    if(res.data&&res.data.session){ state.auth.status='signedIn'; startSession(); }
+    else { state.auth.status='signedOut'; render(); }
+  }).catch(function(){ state.auth.status='signedOut'; state.auth.error='No se pudo conectar.'; render(); });
+}
+
+state.sync.pending=outbox.length;
+boot();
+
+})();
+</script>
+</body>
+</html>
